@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  nginx:
+    container_name: ${NAME}_nginx
+    hostname: ${NAME}_nginx
+    restart: always
+    build:
+      context: ${DOCKER_PATH}/nginx
+      dockerfile: Dockerfile
+    ports:
+      - ${HTTP_PORT}:80
+
+  postgres:
+    container_name: ${NAME}_postgres
+    hostname: ${NAME}_postgres
+    restart: always
+    ports:
+      - ${POSTGRES_PORT}:5432
+    build:
+      context: ${DOCKER_PATH}/postgres
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_ROOT_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - .:/docker-entrypoint-initdb.d
+      - pg_data:${POSTGRES_DATA}
+
+  redis:
+    container_name: ${NAME}_redis
+    hostname: ${NAME}_redis
+    restart: always
+    image: redis:7.0-alpine
+    ports:
+      - ${REDIS_PORT}:6379
+    volumes:
+      - redis_data:${REDIS_DATA}
+    command: [ "redis-server", "--appendonly", "yes" ]
+
+  app:
+    container_name: ${NAME}_app
+    hostname: ${NAME}_app
+    environment:
+      docker: "true"
+    build:
+      context: ${DOCKER_PATH}/app
+      dockerfile: Dockerfile
+      args:
+        - DEBUG=${DEBUG}
+        - APP_SECRET_KEY=${APP_SECRET_KEY}
+        - APP_HOSTS=${APP_HOSTS}
+        - POSTGRES_PORT=${POSTGRES_PORT}
+        - POSTGRES_HOST=${POSTGRES_HOST}
+        - POSTGRES_DATABASE=${POSTGRES_DATABASE}
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        - POSTGRES_ENGINE=${POSTGRES_ENGINE}
+        - RABBITMQ_PORT_CLIENT=${RABBITMQ_PORT_CLIENT}
+        - RABBITMQ_PORT=${RABBITMQ_PORT}
+        - RABBITMQ_USER=${RABBITMQ_USER}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+        - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+    command: gunicorn app.wsgi:application --bind 0.0.0.0:5000
+    volumes:
+      - ./${APP_LOCAL_PATH}:${APP_CONTAINER_PATH}
+
+volumes:
+  pg_data:
+    driver: local
+  redis_data:
+    driver: local
