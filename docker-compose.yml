@@ -40,6 +40,22 @@ services:
       - redis_data:${REDIS_DATA}
     command: [ "redis-server", "--appendonly", "yes" ]
 
+  rabbitmq:
+    container_name: ${NAME}_rabbitmq
+    hostname: ${NAME}_rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - RABBITMQ_DEFAULT_VHOST=${RABBITMQ_VHOST}
+    build:
+      context: ${DOCKER_PATH}/rabbitmq
+      dockerfile: Dockerfile
+    ports:
+      - ${RABBITMQ_PORT_CLIENT}:5672
+      - ${RABBITMQ_PORT}:15672
+    volumes:
+      - ./${DOCKER_PATH}/${RABBITMQ_CONFIG_PATH}:/etc/rabbitmq/rabbitmq.conf:ro
+
   app:
     container_name: ${NAME}_app
     hostname: ${NAME}_app
@@ -66,6 +82,12 @@ services:
     command: gunicorn app.wsgi:application --bind 0.0.0.0:5000
     volumes:
       - ./${APP_LOCAL_PATH}:${APP_CONTAINER_PATH}
+    depends_on:
+      - nginx
+      - postgres
+      - redis
+      - rabbitmq
+
 
 volumes:
   pg_data:
